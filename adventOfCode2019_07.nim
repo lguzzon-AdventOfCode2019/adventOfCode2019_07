@@ -7,166 +7,185 @@ import algorithm
 const
   gcMemory = "input".readFile.split(',').mapIt(parseBiggestInt(it))
 
+type
+  AmplifierStatus = enum
+    running
+    waitInput
+    finish
+    error
 
-proc runProgram(aInput: seq[BiggestInt], aMemory: var seq[BiggestInt]): BiggestInt =
-  var
-    lInstructionPointer: BiggestInt = 0
-    lInputPointer = 0
-  while true:
-    let lInstructionStr = ($aMemory[lInstructionPointer]).align(5, '0')
-    # echo "IP[$1] - $2"%[$lInstructionPointer, lInstructionStr]
-    let lOpCode = lInstructionStr[3..4].parseBiggestInt
-    # echo "IP[$1] - $2"%[$lInstructionPointer, $lOpCode]
-    case lOpCode
-    of 1:
-      var lA = aMemory[lInstructionPointer + 1]
-      var lB = aMemory[lInstructionPointer + 2]
-      let lC = aMemory[lInstructionPointer + 3]
-      # echo "-- Values $1,$2,$3"%[$lA, $lB, $lC]
-      # var lShow = false
-      if ('0' == lInstructionStr[2]):
-        lA = aMemory[lA]
-        # lShow = true
-      if ('0' == lInstructionStr[1]):
-        lB = aMemory[lB]
-        # lShow = true
-      # if (lShow):
+  Amplifier = tuple
+    status : AmplifierStatus
+    input:seq[BiggestInt]
+    memory:seq[BiggestInt]
+    ip: BiggestInt
+    output:seq[BiggestInt]
+
+proc initAmplifier(aPhase:BiggestInt):Amplifier = 
+  result = (AmplifierStatus.running, @[aPhase], toSeq(gcMemory.items), 0i64, @[])
+
+proc runProgram(aAmplifier : var Amplifier) = 
+  if AmplifierStatus.running == aAmplifier.status:
+    while true:
+      let lInstructionStr = ($aAmplifier.memory[aAmplifier.ip]).align(5, '0')
+      # echo "IP[$1] - $2"%[$aAmplifier.ip, lInstructionStr]
+      let lOpCode = lInstructionStr[3..4].parseBiggestInt
+      # echo "IP[$1] - $2"%[$aAmplifier.ip, $lOpCode]
+      case lOpCode
+      of 1:
+        var lA = aAmplifier.memory[aAmplifier.ip + 1]
+        var lB = aAmplifier.memory[aAmplifier.ip + 2]
+        let lC = aAmplifier.memory[aAmplifier.ip + 3]
         # echo "-- Values $1,$2,$3"%[$lA, $lB, $lC]
-      aMemory[lC] = (lA + lB)
-      lInstructionPointer += 4
+        # var lShow = false
+        if ('0' == lInstructionStr[2]):
+          lA = aAmplifier.memory[lA]
+          # lShow = true
+        if ('0' == lInstructionStr[1]):
+          lB = aAmplifier.memory[lB]
+          # lShow = true
+        # if (lShow):
+          # echo "-- Values $1,$2,$3"%[$lA, $lB, $lC]
+        aAmplifier.memory[lC] = (lA + lB)
+        aAmplifier.ip += 4
 
-    of 2:
-      var lA = aMemory[lInstructionPointer + 1]
-      var lB = aMemory[lInstructionPointer + 2]
-      let lC = aMemory[lInstructionPointer + 3]
-      # echo "-- Values $1,$2,$3"%[$lA, $lB, $lC]
-      # var lShow = false
-      if ('0' == lInstructionStr[2]):
-        lA = aMemory[lA]
-        # lShow = true
-      if ('0' == lInstructionStr[1]):
-        lB = aMemory[lB]
-        # lShow = true
-      # if (lShow):
+      of 2:
+        var lA = aAmplifier.memory[aAmplifier.ip + 1]
+        var lB = aAmplifier.memory[aAmplifier.ip + 2]
+        let lC = aAmplifier.memory[aAmplifier.ip + 3]
         # echo "-- Values $1,$2,$3"%[$lA, $lB, $lC]
-      aMemory[lC] = (lA * lB)
-      lInstructionPointer += 4
+        # var lShow = false
+        if ('0' == lInstructionStr[2]):
+          lA = aAmplifier.memory[lA]
+          # lShow = true
+        if ('0' == lInstructionStr[1]):
+          lB = aAmplifier.memory[lB]
+          # lShow = true
+        # if (lShow):
+          # echo "-- Values $1,$2,$3"%[$lA, $lB, $lC]
+        aAmplifier.memory[lC] = (lA * lB)
+        aAmplifier.ip += 4
 
-    of 3:
-      var lA = aMemory[lInstructionPointer + 1]
-      # echo "-- Values $1"%[$lA]
-      aMemory[lA] = aInput[lInputPointer]
-      lInputPointer.inc
-      lInstructionPointer += 2
+      of 3:
+        if aAmplifier.input.len > 0:
+          var lA = aAmplifier.memory[aAmplifier.ip + 1]
+          # echo "-- Values $1"%[$lA]
+          aAmplifier.memory[lA] = aAmplifier.input.pop
+          aAmplifier.ip += 2
+        else:
+          aAmplifier.status = AmplifierStatus.waitInput
+          break
 
-    of 4:
-      var lA = aMemory[lInstructionPointer + 1]
-      # echo "-- Values $1"%[$lA]
-      # var lShow = false
-      if ('0' == lInstructionStr[2]):
-        lA = aMemory[lA]
-        # lShow = true
-      # if (lShow):
+      of 4:
+        var lA = aAmplifier.memory[aAmplifier.ip + 1]
         # echo "-- Values $1"%[$lA]
-      # echo "Output --> " & $lA
-      result = lA
-      lInstructionPointer += 2
+        # var lShow = false
+        if ('0' == lInstructionStr[2]):
+          lA = aAmplifier.memory[lA]
+          # lShow = true
+        # if (lShow):
+          # echo "-- Values $1"%[$lA]
+        # echo "Output --> " & $lA
+        aAmplifier.output.insert(lA,0)
+        aAmplifier.ip += 2
 
-    of 5:
-      var lA = aMemory[lInstructionPointer + 1]
-      var lB = aMemory[lInstructionPointer + 2]
-      # echo "-- Values $1,$2"%[$lA, $lB]
-      # var lShow = false
-      if ('0' == lInstructionStr[2]):
-        lA = aMemory[lA]
-        # lShow = true
-      if ('0' == lInstructionStr[1]):
-        lB = aMemory[lB]
-        # lShow = true
-      # if (lShow):
+      of 5:
+        var lA = aAmplifier.memory[aAmplifier.ip + 1]
+        var lB = aAmplifier.memory[aAmplifier.ip + 2]
         # echo "-- Values $1,$2"%[$lA, $lB]
-      if (0 != lA):
-        lInstructionPointer = lB
-      else:
-        lInstructionPointer += 3
+        # var lShow = false
+        if ('0' == lInstructionStr[2]):
+          lA = aAmplifier.memory[lA]
+          # lShow = true
+        if ('0' == lInstructionStr[1]):
+          lB = aAmplifier.memory[lB]
+          # lShow = true
+        # if (lShow):
+          # echo "-- Values $1,$2"%[$lA, $lB]
+        if (0 != lA):
+          aAmplifier.ip = lB
+        else:
+          aAmplifier.ip += 3
 
-    of 6:
-      var lA = aMemory[lInstructionPointer + 1]
-      var lB = aMemory[lInstructionPointer + 2]
-      # echo "-- Values $1,$2"%[$lA, $lB]
-      # var lShow = false
-      if ('0' == lInstructionStr[2]):
-        lA = aMemory[lA]
-        # lShow = true
-      if ('0' == lInstructionStr[1]):
-        lB = aMemory[lB]
-        # lShow = true
-      # if (lShow):
+      of 6:
+        var lA = aAmplifier.memory[aAmplifier.ip + 1]
+        var lB = aAmplifier.memory[aAmplifier.ip + 2]
         # echo "-- Values $1,$2"%[$lA, $lB]
-      if (0 == lA):
-        lInstructionPointer = lB
-      else:
-        lInstructionPointer += 3
+        # var lShow = false
+        if ('0' == lInstructionStr[2]):
+          lA = aAmplifier.memory[lA]
+          # lShow = true
+        if ('0' == lInstructionStr[1]):
+          lB = aAmplifier.memory[lB]
+          # lShow = true
+        # if (lShow):
+          # echo "-- Values $1,$2"%[$lA, $lB]
+        if (0 == lA):
+          aAmplifier.ip = lB
+        else:
+          aAmplifier.ip += 3
 
-    of 7:
-      var lA = aMemory[lInstructionPointer + 1]
-      var lB = aMemory[lInstructionPointer + 2]
-      let lC = aMemory[lInstructionPointer + 3]
-      # echo "-- Values $1,$2,$3"%[$lA, $lB, $lC]
-      # var lShow = false
-      if ('0' == lInstructionStr[2]):
-        lA = aMemory[lA]
-        # lShow = true
-      if ('0' == lInstructionStr[1]):
-        lB = aMemory[lB]
-        # lShow = true
-      # if (lShow):
+      of 7:
+        var lA = aAmplifier.memory[aAmplifier.ip + 1]
+        var lB = aAmplifier.memory[aAmplifier.ip + 2]
+        let lC = aAmplifier.memory[aAmplifier.ip + 3]
         # echo "-- Values $1,$2,$3"%[$lA, $lB, $lC]
-      if (lA < lB):
-        aMemory[lC] = 1
-      else:
-        aMemory[lC] = 0
-      lInstructionPointer += 4
+        # var lShow = false
+        if ('0' == lInstructionStr[2]):
+          lA = aAmplifier.memory[lA]
+          # lShow = true
+        if ('0' == lInstructionStr[1]):
+          lB = aAmplifier.memory[lB]
+          # lShow = true
+        # if (lShow):
+          # echo "-- Values $1,$2,$3"%[$lA, $lB, $lC]
+        if (lA < lB):
+          aAmplifier.memory[lC] = 1
+        else:
+          aAmplifier.memory[lC] = 0
+        aAmplifier.ip += 4
 
-    of 8:
-      var lA = aMemory[lInstructionPointer + 1]
-      var lB = aMemory[lInstructionPointer + 2]
-      let lC = aMemory[lInstructionPointer + 3]
-      # echo "-- Values $1,$2,$3"%[$lA, $lB, $lC]
-      # var lShow = false
-      if ('0' == lInstructionStr[2]):
-        lA = aMemory[lA]
-        # lShow = true
-      if ('0' == lInstructionStr[1]):
-        lB = aMemory[lB]
-        # lShow = true
-      # if (lShow):
+      of 8:
+        var lA = aAmplifier.memory[aAmplifier.ip + 1]
+        var lB = aAmplifier.memory[aAmplifier.ip + 2]
+        let lC = aAmplifier.memory[aAmplifier.ip + 3]
         # echo "-- Values $1,$2,$3"%[$lA, $lB, $lC]
-      if (lA == lB):
-        aMemory[lC] = 1
+        # var lShow = false
+        if ('0' == lInstructionStr[2]):
+          lA = aAmplifier.memory[lA]
+          # lShow = true
+        if ('0' == lInstructionStr[1]):
+          lB = aAmplifier.memory[lB]
+          # lShow = true
+        # if (lShow):
+          # echo "-- Values $1,$2,$3"%[$lA, $lB, $lC]
+        if (lA == lB):
+          aAmplifier.memory[lC] = 1
+        else:
+          aAmplifier.memory[lC] = 0
+        aAmplifier.ip += 4
+      
+      of 99:
+        aAmplifier.status = AmplifierStatus.finish
+        break
+
       else:
-        aMemory[lC] = 0
-      lInstructionPointer += 4
-
-    else:
-      # echo "Current IP [$1] Value [$2]"%[$lInstructionPointer, lInstructionStr]
-      break
-
+        # echo "Current IP [$1] Value [$2]"%[$aAmplifier.ip, lInstructionStr]
+        aAmplifier.status = AmplifierStatus.error
+        break
 
 proc partOne =
   var result = BiggestInt.low
-  var lPhases = @[0i64, 1i64, 2i64, 3i64, 4i64]
+  var lPhases = @[BiggestInt(0i64), BiggestInt(1i64), BiggestInt(2i64), BiggestInt(3i64), BiggestInt(4i64)]
   while true:
-    result = result.max(runProgram(@[lPhases[4],
-        runProgram(@[lPhases[3],
-        runProgram(@[lPhases[2],
-        runProgram(@[lPhases[1],
-        runProgram(@[lPhases[0], 0i64],
-        toSeq(gcMemory.items))],
-        toSeq(gcMemory.items))],
-        toSeq(gcMemory.items))],
-        toSeq(gcMemory.items))],
-        toSeq(gcMemory.items)))
+    var amplifiers = lPhases.map(initAmplifier)
+    amplifiers[0].input.add(0i64)
+    amplifiers.apply(runProgram)
+    for (index,amplifier) in amplifiers.pairs:
+      if AmplifierStatus.running == amplifier.status:
+        amplifiers[index.mod(lPhases.len)].input.insert(amplifier.output,0)
+        amplifiers[index].output = @[]
+
     if not lPhases.nextPermutation:
       break
 
@@ -196,6 +215,7 @@ proc partTwo =
     if not lPhases.nextPermutation:
       break
 
+  result = aAmplifier.status
   echo "partTwo $1"%[$result]
 
 
